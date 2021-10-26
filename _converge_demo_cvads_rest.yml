@@ -1,0 +1,119 @@
+---
+  - hosts: localhost
+    gather_facts: False
+
+    vars:
+      delivery_group: _shonk_converge_demo_dg
+      machine_catalogs:
+        _shonk_converge_demo_catalog_0:
+            maintenance_mode_state: true
+        _shonk_converge_demo_catalog_1:
+            maintenance_mode_state: false
+
+    # Load in our Vaulted Variables and Passwords
+    vars_files:
+      - "pwd_vars/{{ runas_admin }}.yml"
+
+    tasks:
+      - name: Get A Token!
+        uri:
+          url: https://api-us.cloud.com/cctrustoauth2/root/tokens/clients
+          method: POST
+          body_format: form-urlencoded
+          body:
+            grant_type: client_credentials
+            client_id: "{{ CLIENT_ID }}"
+            client_secret: "{{ CLIENT_SECRET }}"
+        register: response
+
+      - name: Set Token as a Fact to be Referenced in Future Requests
+        set_fact:
+          citrix_access_token: "{{ response.json.access_token }}"
+
+      - name: Get Me
+        uri:
+          url: "https://api-us.cloud.com/cvad/manage/me"
+          method: GET
+          headers:
+            Citrix-CustomerId: "{{ CUSTOMER_ID }}"
+            Authorization: "CwsAuth Bearer={{ citrix_access_token }}"
+        register: response
+
+      - name: Set Citrix-InstanceId
+        set_fact:
+          citrix_instance_id: "{{ response.json.Customers[0].Sites[0].Id }}"
+
+      - name: Get Specified Delivery Group Machines
+        uri:
+          url: "https://api.cloud.com/cvad/manage/DeliveryGroups/{{ delivery_group }}/Machines"
+          method: GET
+          headers:
+            Authorization: "CwsAuth Bearer={{ citrix_access_token }}"
+            Citrix-CustomerId: "{{ CUSTOMER_ID }}"
+            Citrix-InstanceId: "{{ citrix_instance_id }}"
+        register: list_of_machines
+
+      - name: Set Specified Delivery Group Machines
+        uri:
+          url: "https://api.cloud.com/cvad/manage/Machines/{{ item.Name }}"
+          method: PATCH
+          headers:
+            Authorization: "CwsAuth Bearer={{ citrix_access_token }}"
+            Citrix-CustomerId: "{{ CUSTOMER_ID }}"
+            Citrix-InstanceId: "{{ citrix_instance_id }}"
+          body_format: json
+          body:
+            InMaintenanceMode: "{{ machine_catalogs[item.MachineCatalog.Name].maintenance_mode_state }}"
+          status_code: [200, 204]
+        with_items: "{{ list_of_machines.json.Items }}"
+
+###  Additional CVADS REST API Examples
+      # - name: Get Machine Catalog 0
+      #   uri:
+      #     url: "https://api.cloud.com/cvad/manage/MachineCatalogs"
+      #     method: GET
+      #     headers:
+      #       Authorization: "CwsAuth Bearer={{ citrix_access_token }}"
+      #       Citrix-CustomerId: "{{ CUSTOMER_ID }}"
+      #       Citrix-InstanceId: "{{ citrix_instance_id }}"
+      #   register: response
+      #
+      # - debug:
+      #     var: "response.json.Items | selectattr('Name', 'equalto', '_shonk_converge_demo_catalog_0') | list"
+
+      # - name: Create Machine Catalog
+      #   uri:
+      #     url: "https://api-us.cloud.com/cvad/manage/MachineCatalogs"
+      #     method: POST
+      #     headers:
+      #       Authorization: "CwsAuth Bearer={{ citrix_access_token }}"
+      #       Citrix-CustomerId: "{{ CUSTOMER_ID }}"
+      #       Citrix-InstanceId: "{{ citrix_instance_id }}"
+      #     body_format: json
+      #     body:
+      #       Name: "{{ machine_catalog_1 }}"
+      #       AllocationType: Random
+      #       IsRemotePC: false
+      #       MachineType: Physical
+      #       MinimumFunctionalLevel: L7_9
+      #       PersistUserChanges: Discard
+      #       ProvisioningType: Manual
+      #       SessionSupport: MultiSession
+      #
+      #   register: response
+
+      # - debug:
+      #     var: response
+
+      # - name: Get Specified Delivery Group
+      #   uri:
+      #     url: "https://api.cloud.com/cvad/manage/DeliveryGroups"
+      #     method: GET
+      #     headers:
+      #       Authorization: "CwsAuth Bearer={{ citrix_access_token }}"
+      #       Citrix-CustomerId: "{{ CUSTOMER_ID }}"
+      #       Citrix-InstanceId: "{{ citrix_instance_id }}"
+      #   register: response
+      #
+      # - debug:
+      #     var: "response.json.Items | selectattr('Name', 'equalto', '{{ delivery_group }}') | list"
