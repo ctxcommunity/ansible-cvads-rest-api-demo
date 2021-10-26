@@ -19,6 +19,7 @@
         uri:
           url: https://api-us.cloud.com/cctrustoauth2/root/tokens/clients
           method: POST
+          #---Uber important for Auth that the body format be set to form-urlencoded.  Rest of script can use JSON requests
           body_format: form-urlencoded
           body:
             grant_type: client_credentials
@@ -43,6 +44,13 @@
         set_fact:
           citrix_instance_id: "{{ response.json.Customers[0].Sites[0].Id }}"
 
+###
+      - debug:
+          var: citrix_instance_id
+
+      - meta: end_play
+###
+
       - name: Get Specified Delivery Group Machines
         uri:
           url: "https://api.cloud.com/cvad/manage/DeliveryGroups/{{ delivery_group }}/Machines"
@@ -52,6 +60,38 @@
             Citrix-CustomerId: "{{ CUSTOMER_ID }}"
             Citrix-InstanceId: "{{ citrix_instance_id }}"
         register: list_of_machines
+
+
+
+
+# ###
+      - debug:
+          var: list_of_machines
+
+      - meta: end_play
+# ###
+
+#       - name: Get Machines Tags
+#         uri:
+#           url: "https://api.cloud.com/cvad/manage/Machines/{{ item.Id }}/Tags"
+#           method: GET
+#           headers:
+#             Authorization: "CwsAuth Bearer={{ citrix_access_token }}"
+#             Citrix-CustomerId: "{{ CUSTOMER_ID }}"
+#             Citrix-InstanceId: "{{ citrix_instance_id }}"
+#         register: list_of_machines_with_tags
+#         with_items: "{{ list_of_machines.json.Items }}"
+#
+#
+# ###
+#       - debug:
+#           msg: "Machine Name: {{ item.item.Name }}, Machine UUID: {{ item.item.Id }}, Tag: {{ item.json.Items[0].Name }}"
+#         loop: "{{ list_of_machines_with_tags.results }}"
+#         loop_control:
+#             label: "{{ item.item.Name }}"
+#
+#       - meta: end_play
+# ###
 
       - name: Set Specified Delivery Group Machines
         uri:
@@ -67,7 +107,10 @@
           status_code: [200, 204]
         with_items: "{{ list_of_machines.json.Items }}"
 
-###  Additional CVADS REST API Examples
+
+
+# https://api.cloud.com/cvad/manage/DeliveryGroups/{nameOrId}/Machines
+
       # - name: Get Machine Catalog 0
       #   uri:
       #     url: "https://api.cloud.com/cvad/manage/MachineCatalogs"
