@@ -45,10 +45,10 @@
           citrix_instance_id: "{{ response.json.Customers[0].Sites[0].Id }}"
 
 ###
-      - debug:
-          var: citrix_instance_id
+#       - debug:
+#           var: citrix_instance_id
 
-      - meta: end_play
+#       - meta: end_play
 ###
 
       - name: Get Specified Delivery Group Machines
@@ -60,15 +60,12 @@
             Citrix-CustomerId: "{{ CUSTOMER_ID }}"
             Citrix-InstanceId: "{{ citrix_instance_id }}"
         register: list_of_machines
-
-
-
-
+        
 # ###
-      - debug:
-          var: list_of_machines
+#       - debug:
+#           var: list_of_machines
 
-      - meta: end_play
+#       - meta: end_play
 # ###
 
 #       - name: Get Machines Tags
